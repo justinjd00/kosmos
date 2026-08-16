@@ -1,0 +1,8 @@
+services:
+  kosmos:
+    build: .
+    image: kosmos:latest
+    container_name: kosmos
+    ports:
+      - "${KOSMOS_PORT:-8080}:80"
+    restart: unless-stopped

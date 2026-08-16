@@ -1,0 +1,13 @@
+target/
+node_modules/
+dist/
+web/src/wasm/
+
+notes/
+/notes
+
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.log

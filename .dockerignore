@@ -1,0 +1,8 @@
+.git
+.github
+notes
+**/node_modules
+**/target
+**/dist
+web/src/wasm
+*.md
