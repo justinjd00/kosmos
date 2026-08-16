@@ -96,6 +96,7 @@ impl Kind {
     }
 }
 
+#[allow(clippy::needless_range_loop)]
 pub fn derivative(kind: Kind, params: &[f64], state: &[f64], out: &mut [f64]) {
     match kind {
         Kind::Lorenz => {
@@ -215,6 +216,7 @@ impl Default for Integrator {
 }
 
 impl Integrator {
+    #[allow(clippy::needless_range_loop)]
     pub fn step(&mut self, kind: Kind, params: &[f64], state: &mut [f64], dt: f64) {
         let n = state.len();
 
@@ -241,6 +243,7 @@ impl Integrator {
     }
 }
 
+#[allow(clippy::needless_range_loop)]
 pub fn energy(kind: Kind, params: &[f64], state: &[f64]) -> f64 {
     match kind {
         Kind::DoublePendulum => {
