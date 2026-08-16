@@ -385,10 +385,20 @@ impl System {
         let count = self.filled.min(keep.max(2));
         let mut out = Vec::with_capacity(count * 2);
 
+        let start = (self.head + TRAIL_CAPACITY - count) % TRAIL_CAPACITY;
+
+        if !self.kind.is_spatial() {
+            for offset in 0..count {
+                let index = ((start + offset) % TRAIL_CAPACITY) * 3;
+                out.push(self.trail[index]);
+                out.push(self.trail[index + 1]);
+            }
+            return out;
+        }
+
         let (sin_yaw, cos_yaw) = yaw.sin_cos();
         let (sin_pitch, cos_pitch) = pitch.sin_cos();
 
-        let start = (self.head + TRAIL_CAPACITY - count) % TRAIL_CAPACITY;
         for offset in 0..count {
             let index = ((start + offset) % TRAIL_CAPACITY) * 3;
             let x = self.trail[index] as f64;
@@ -430,6 +440,12 @@ impl System {
         }
         if !min_x.is_finite() {
             return vec![-1.0, 1.0, -1.0, 1.0];
+        }
+        if !self.kind.is_spatial() {
+            min_x = min_x.min(0.0);
+            max_x = max_x.max(0.0);
+            min_y = min_y.min(0.0);
+            max_y = max_y.max(0.0);
         }
         vec![min_x, max_x, min_y, max_y]
     }
