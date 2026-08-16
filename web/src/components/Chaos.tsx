@@ -104,9 +104,15 @@ const TWIN_COLOR = "#fb7185";
 const MAIN_COLOR = "#5eead4";
 const BODY_COLORS = ["#5eead4", "#a78bfa", "#fbbf24"];
 
-type Props = { presetId: string; onPreset: (id: string) => void };
+type Props = {
+  presetId: string;
+  onPreset: (id: string) => void;
+  twin: boolean;
+  onTwin: (value: boolean) => void;
+  warm?: number;
+};
 
-export default function Chaos({ presetId, onPreset }: Props) {
+export default function Chaos({ presetId, onPreset, twin, onTwin, warm = 0 }: Props) {
   const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0];
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -121,14 +127,13 @@ export default function Chaos({ presetId, onPreset }: Props) {
 
   const [params, setParams] = useState<number[]>([]);
   const [running, setRunning] = useState(true);
-  const [twin, setTwin] = useState(false);
   const [trailLength, setTrailLength] = useState(12000);
   const [speed, setSpeed] = useState(1);
+  const [generation, setGeneration] = useState(0);
   const [stats, setStats] = useState({ time: 0, energy: NaN, separation: NaN });
 
   const build = useCallback(() => {
     mainRef.current?.free();
-    twinRef.current?.free();
     const main = new System(preset.id);
     const count = main.paramCount();
     const values = Array.from({ length: count }, (_, i) => defaultParam(preset, i));
@@ -138,19 +143,17 @@ export default function Chaos({ presetId, onPreset }: Props) {
     main.advance(10);
 
     mainRef.current = main;
-    twinRef.current = null;
     viewRef.current = { cx: 0, cy: 0, scale: 0 };
     tickRef.current = 0;
     setParams(values);
+    setGeneration((value) => value + 1);
   }, [preset]);
 
   useEffect(() => {
     build();
     return () => {
       mainRef.current?.free();
-      twinRef.current?.free();
       mainRef.current = null;
-      twinRef.current = null;
     };
   }, [build]);
 
@@ -179,11 +182,33 @@ export default function Chaos({ presetId, onPreset }: Props) {
     clone.nudge(0, 1e-7);
     twinRef.current = clone;
     return () => {
-      clone.free();
       if (twinRef.current === clone) twinRef.current = null;
+      clone.free();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [twin, preset.id]);
+  }, [twin, preset.id, generation]);
+
+  useEffect(() => {
+    if (warm <= 0) return;
+    const main = mainRef.current;
+    if (!main) return;
+
+    let remaining = warm;
+    while (remaining > 0) {
+      const slice = Math.min(remaining, 10);
+      main.advance(slice);
+      twinRef.current?.advance(slice);
+      remaining -= slice;
+    }
+
+    const a = main.state();
+    const b = twinRef.current?.state();
+    setStats({
+      time: main.time(),
+      energy: main.energy(),
+      separation: b ? Math.hypot(...a.map((value, index) => value - b[index])) : NaN,
+    });
+  }, [warm, twin, generation]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -405,7 +430,7 @@ export default function Chaos({ presetId, onPreset }: Props) {
             <button className="chip" onClick={build}>
               Reset
             </button>
-            <button className={twin ? "chip on" : "chip"} onClick={() => setTwin((t) => !t)}>
+            <button className={twin ? "chip on" : "chip"} onClick={() => onTwin(!twin)}>
               Butterfly twin
             </button>
           </div>

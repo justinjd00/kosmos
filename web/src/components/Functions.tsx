@@ -13,25 +13,31 @@ type Entry = {
 };
 
 const DEFAULT_VIEW: View = { xMin: -10, xMax: 10, yMin: -6.5, yMax: 6.5 };
-const SEEDS = ["sin(x)", "0.4x^2 - 3"];
+
+const SEEDS: { source: string; derivative: boolean; markers: boolean }[] = [
+  { source: "sin(x)", derivative: true, markers: false },
+  { source: "0.4x^2 - 3", derivative: false, markers: true },
+];
 
 let counter = 0;
 
-function blank(source: string): Entry {
+function blank(source: string, derivative = false, markers = false): Entry {
   counter += 1;
   return {
     id: `f${counter}`,
     source,
     color: PALETTE[(counter - 1) % PALETTE.length],
     visible: true,
-    derivative: false,
-    markers: false,
+    derivative,
+    markers,
     error: null,
   };
 }
 
 export default function Functions() {
-  const [entries, setEntries] = useState<Entry[]>(() => SEEDS.map(blank));
+  const [entries, setEntries] = useState<Entry[]>(() =>
+    SEEDS.map((seed) => blank(seed.source, seed.derivative, seed.markers)),
+  );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
   const [params, setParams] = useState<[number, number, number, number]>([1, 1, 1, 1]);
   const [time, setTime] = useState(0);
