@@ -1,10 +1,12 @@
 pub mod calculus;
+pub mod dynamics;
 pub mod eval;
 pub mod expr;
 pub mod plot;
 
 use wasm_bindgen::prelude::*;
 
+use dynamics::{Integrator, Kind};
 use eval::Program;
 use expr::{Expr, ParseError};
 use plot::Viewport;
@@ -226,6 +228,228 @@ impl Function {
 #[wasm_bindgen(js_name = niceStep)]
 pub fn nice_step(span: f64, target_count: f64) -> f64 {
     plot::nice_step(span, target_count)
+}
+
+const TRAIL_CAPACITY: usize = 60_000;
+
+#[wasm_bindgen]
+pub struct System {
+    kind: Kind,
+    params: Vec<f64>,
+    state: Vec<f64>,
+    integrator: Integrator,
+    trail: Vec<f32>,
+    head: usize,
+    filled: usize,
+    time: f64,
+}
+
+#[wasm_bindgen]
+impl System {
+    #[wasm_bindgen(constructor)]
+    pub fn new(name: &str) -> Result<System, String> {
+        let kind = Kind::from_name(name).ok_or_else(|| format!("unknown system '{name}'"))?;
+        let mut system = System {
+            kind,
+            params: kind.defaults().to_vec(),
+            state: kind.initial(),
+            integrator: Integrator::default(),
+            trail: vec![0.0; TRAIL_CAPACITY * 3],
+            head: 0,
+            filled: 0,
+            time: 0.0,
+        };
+        system.record();
+        Ok(system)
+    }
+
+    fn record(&mut self) {
+        let point = self.sample_point();
+        let base = self.head * 3;
+        self.trail[base] = point[0] as f32;
+        self.trail[base + 1] = point[1] as f32;
+        self.trail[base + 2] = point[2] as f32;
+        self.head = (self.head + 1) % TRAIL_CAPACITY;
+        self.filled = (self.filled + 1).min(TRAIL_CAPACITY);
+    }
+
+    fn sample_point(&self) -> [f64; 3] {
+        match self.kind {
+            Kind::DoublePendulum => {
+                let (l1, l2) = (self.params[2], self.params[3]);
+                let (t1, t2) = (self.state[0], self.state[1]);
+                let x1 = l1 * t1.sin();
+                let y1 = -l1 * t1.cos();
+                [x1 + l2 * t2.sin(), y1 - l2 * t2.cos(), 0.0]
+            }
+            Kind::ThreeBody => [self.state[0], self.state[1], 0.0],
+            _ => [self.state[0], self.state[1], self.state[2]],
+        }
+    }
+
+    pub fn advance(&mut self, seconds: f64) -> usize {
+        let dt = self.kind.suggested_step();
+        let steps = ((seconds / dt).round() as usize).min(4000);
+        for _ in 0..steps {
+            self.integrator
+                .step(self.kind, &self.params, &mut self.state, dt);
+            self.time += dt;
+            self.record();
+        }
+        steps
+    }
+
+    pub fn reset(&mut self) {
+        self.state = self.kind.initial();
+        self.head = 0;
+        self.filled = 0;
+        self.time = 0.0;
+        self.record();
+    }
+
+    #[wasm_bindgen(js_name = clearTrail)]
+    pub fn clear_trail(&mut self) {
+        self.head = 0;
+        self.filled = 0;
+        self.record();
+    }
+
+    #[wasm_bindgen(js_name = setState)]
+    pub fn set_state(&mut self, values: Vec<f64>) {
+        if values.len() == self.state.len() {
+            self.state.copy_from_slice(&values);
+            self.head = 0;
+            self.filled = 0;
+            self.record();
+        }
+    }
+
+    #[wasm_bindgen(js_name = setTime)]
+    pub fn set_time(&mut self, value: f64) {
+        self.time = value;
+    }
+
+    #[wasm_bindgen(js_name = nudge)]
+    pub fn nudge(&mut self, index: usize, amount: f64) {
+        if index < self.state.len() {
+            self.state[index] += amount;
+        }
+    }
+
+    #[wasm_bindgen(js_name = setParam)]
+    pub fn set_param(&mut self, index: usize, value: f64) {
+        if index < self.params.len() {
+            self.params[index] = value;
+        }
+    }
+
+    #[wasm_bindgen(js_name = paramCount)]
+    pub fn param_count(&self) -> usize {
+        self.params.len()
+    }
+
+    #[wasm_bindgen(js_name = isSpatial)]
+    pub fn is_spatial(&self) -> bool {
+        self.kind.is_spatial()
+    }
+
+    pub fn time(&self) -> f64 {
+        self.time
+    }
+
+    pub fn energy(&self) -> f64 {
+        dynamics::energy(self.kind, &self.params, &self.state)
+    }
+
+    pub fn state(&self) -> Vec<f64> {
+        self.state.clone()
+    }
+
+    pub fn positions(&self) -> Vec<f64> {
+        match self.kind {
+            Kind::DoublePendulum => {
+                let (l1, l2) = (self.params[2], self.params[3]);
+                let (t1, t2) = (self.state[0], self.state[1]);
+                let x1 = l1 * t1.sin();
+                let y1 = -l1 * t1.cos();
+                vec![x1, y1, x1 + l2 * t2.sin(), y1 - l2 * t2.cos()]
+            }
+            Kind::ThreeBody => (0..3)
+                .flat_map(|body| [self.state[body * 4], self.state[body * 4 + 1]])
+                .collect(),
+            _ => vec![self.state[0], self.state[1], self.state[2]],
+        }
+    }
+
+    pub fn trail(&self, yaw: f64, pitch: f64, keep: usize) -> Vec<f32> {
+        let count = self.filled.min(keep.max(2));
+        let mut out = Vec::with_capacity(count * 2);
+
+        let (sin_yaw, cos_yaw) = yaw.sin_cos();
+        let (sin_pitch, cos_pitch) = pitch.sin_cos();
+
+        let start = (self.head + TRAIL_CAPACITY - count) % TRAIL_CAPACITY;
+        for offset in 0..count {
+            let index = ((start + offset) % TRAIL_CAPACITY) * 3;
+            let x = self.trail[index] as f64;
+            let y = self.trail[index + 1] as f64;
+            let z = self.trail[index + 2] as f64;
+
+            let rotated_x = x * cos_yaw - y * sin_yaw;
+            let rotated_y = x * sin_yaw + y * cos_yaw;
+
+            out.push(rotated_x as f32);
+            out.push((z * cos_pitch - rotated_y * sin_pitch) as f32);
+        }
+
+        out
+    }
+
+    #[wasm_bindgen(js_name = trailLength)]
+    pub fn trail_length(&self) -> usize {
+        self.filled
+    }
+
+    pub fn bounds(&self, yaw: f64, pitch: f64) -> Vec<f32> {
+        let points = self.trail(yaw, pitch, TRAIL_CAPACITY);
+        if points.is_empty() {
+            return vec![-1.0, 1.0, -1.0, 1.0];
+        }
+        let mut min_x = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        for pair in points.chunks_exact(2) {
+            if !pair[0].is_finite() || !pair[1].is_finite() {
+                continue;
+            }
+            min_x = min_x.min(pair[0]);
+            max_x = max_x.max(pair[0]);
+            min_y = min_y.min(pair[1]);
+            max_y = max_y.max(pair[1]);
+        }
+        if !min_x.is_finite() {
+            return vec![-1.0, 1.0, -1.0, 1.0];
+        }
+        vec![min_x, max_x, min_y, max_y]
+    }
+}
+
+#[wasm_bindgen(js_name = systemNames)]
+pub fn system_names() -> Vec<String> {
+    [
+        "lorenz",
+        "rossler",
+        "aizawa",
+        "thomas",
+        "halvorsen",
+        "chen",
+        "double-pendulum",
+        "three-body",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
 }
 
 #[wasm_bindgen(js_name = checkSyntax)]

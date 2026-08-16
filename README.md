@@ -36,6 +36,26 @@ which is exactly the right tool for the other half of the job.
 - Roots and extrema found numerically and classified as maxima or minima
 - Live parameters `a b c d` on sliders, and a time variable `t` that animates
 
+**Chaos**
+
+Eight systems integrated live with a fourth-order Runge-Kutta scheme: Lorenz, Rössler, Aizawa,
+Thomas, Halvorsen and Chen in 3D (drag to rotate), plus the double pendulum and the three-body
+problem.
+
+Two of them are there because they can be checked rather than just admired:
+
+- The **double pendulum** conserves energy. The readout stays flat to within one part in a
+  hundred thousand over 20,000 steps — that number is a test in the suite, so a bad edit to the
+  integrator fails CI rather than quietly producing plausible nonsense.
+- The **three-body problem** starts on the figure-eight orbit found by Cristopher Moore in 1993.
+  It is exactly periodic, and the test suite integrates one full period and checks that all
+  twelve state variables come back to where they started.
+
+**Butterfly twin** launches a second copy of the running system one ten-millionth away from the
+first. Same equations, same machine, no randomness anywhere. Watch the separation readout climb
+from `1e-7` to `1e+1` and the two coloured trajectories peel apart. That is what "chaos" means,
+and it is the reason weather forecasts stop working after about ten days.
+
 ## Self-hosting
 
 kosmos is a static site plus a `.wasm` file. Anything that serves files can host it.
@@ -85,9 +105,9 @@ cd core && wasm-pack build --release --target web --out-dir ../web/src/wasm --ou
 cd ../web && npm ci && npm run dev
 ```
 
-Run the engine's test suite with `cd core && cargo test` — 35 tests covering the parser, the
-evaluator, symbolic derivatives (checked against finite differences), pole detection and adaptive
-sampling.
+Run the engine's test suite with `cd core && cargo test` — 40 tests covering the parser, the
+evaluator, symbolic derivatives (checked against finite differences), pole detection, adaptive
+sampling, energy conservation and orbital periodicity.
 
 ## Syntax
 
@@ -114,7 +134,6 @@ Errors carry the exact character position, so a typo is underlined rather than d
 
 ## Roadmap
 
-- **Chaos** — Lorenz attractor, double pendulum, three-body problem, phase portraits
 - **Fields** — the wave equation, heat diffusion, electric fields, solved live
 - **Life** — Turing patterns, predator–prey dynamics, epidemics, cellular automata
 
