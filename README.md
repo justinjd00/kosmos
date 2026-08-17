@@ -552,14 +552,38 @@ tools/verify.ps1           # the Lean proofs, and the corpus they generate
 
 ## Roadmap
 
+kosmos is meant to be usable for real work — a chemist checking a structure, a student
+preparing an exam, a paper that needs a figure. That means every answer has to be
+computed from the input, defensible, and exportable.
+
+**Shipped**
+
 - [x] **Functions** — expression language, symbolic calculus, adaptive plotting
 - [x] **Chaos** — eight systems, RK4, butterfly twin, deep links
 - [x] **Proofs** — differentiation and simplification machine-checked in Lean 4
 - [x] **Algebra** — integration, solving and series in OCaml, compiled to JavaScript
 - [x] **Fields** — the wave equation, heat diffusion and electrostatics, solved live
-- [ ] **Proofs, part two** — `ln`, `sqrt` and `tan` with their domain conditions
-- [ ] **Algebra, part two** — partial fractions, and factoring polynomials over the rationals
-- [ ] **Life** — Turing patterns, predator–prey dynamics, epidemics, cellular automata
+
+**Molecules** — the next module. A SMILES string in, a correct structural formula, a
+relaxed 3D model and a table of computed properties out, each one exportable.
+
+- [x] Periodic table with cited constants — CIAAW 2021, AME2020, Cordero 2008, Alvarez 2013
+- [x] SMILES parser, molecular graph, ring perception, implicit hydrogens
+- [x] Topological polar surface area, after Ertl 2000
+- [ ] [#1](../../issues/1) Molecular descriptors — formula, exact and average mass, unsaturation, rotatable bonds, donors and acceptors
+- [ ] [#2](../../issues/2) 2D structure diagrams and publication-quality SVG
+- [ ] [#3](../../issues/3) 3D geometry from connectivity, relaxed with a force field
+- [ ] [#4](../../issues/4) Interactive 3D view in the browser
+- [ ] [#5](../../issues/5) Export — SVG, PNG, MOL, XYZ, PDB, CSV, JSON
+- [ ] [#6](../../issues/6) A provenance stamp on every export, so a result can be reproduced exactly
+- [ ] [#7](../../issues/7) The Molecules module in the interface
+
+**After that**
+
+- [ ] [#8](../../issues/8) **Nucleic acids** — FASTA in, sequence map, GC content, ORFs, melting temperature, and a B-DNA helix in 3D
+- [ ] [#9](../../issues/9) **Proofs, part two** — `ln`, `sqrt` and `tan` with their domain conditions
+- [ ] [#10](../../issues/10) **Algebra, part two** — partial fractions, and factoring polynomials over the rationals
+- [ ] [#11](../../issues/11) **Life** — Turing patterns, predator–prey dynamics, epidemics, cellular automata
 
 <br>
 

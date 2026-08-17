@@ -1,4 +1,5 @@
 pub mod calculus;
+pub mod chem;
 pub mod dynamics;
 pub mod eval;
 pub mod expr;
