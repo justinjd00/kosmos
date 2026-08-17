@@ -18,6 +18,7 @@ $OutDir = (Resolve-Path $OutDir).Path
 
 $shots = @(
     @{ name = "functions"; hash = "#functions" },
+    @{ name = "algebra"; hash = "#functions/algebra" },
     @{ name = "lorenz"; hash = "#chaos/lorenz+twin@75" },
     @{ name = "pendulum"; hash = "#chaos/double-pendulum+twin@45" },
     @{ name = "three-body"; hash = "#chaos/three-body@30" },
@@ -29,7 +30,7 @@ $shots = @(
 foreach ($shot in $shots) {
     $target = Join-Path $OutDir "$($shot.name).png"
     $url = "$BaseUrl/$($shot.hash)"
-    $sandbox = Join-Path $env:TEMP "kosmos-shot"
+    $sandbox = Join-Path $env:TEMP "kosmos-shot-$($shot.name)"
 
     Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue
     Remove-Item -Force $target -ErrorAction SilentlyContinue
@@ -57,7 +58,8 @@ foreach ($shot in $shots) {
     }
 }
 
-Remove-Item -Recurse -Force (Join-Path $env:TEMP "kosmos-shot") -ErrorAction SilentlyContinue
+Get-ChildItem $env:TEMP -Directory -Filter "kosmos-shot-*" -ErrorAction SilentlyContinue |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
 Add-Type -AssemblyName System.Drawing
 

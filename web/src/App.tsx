@@ -14,6 +14,9 @@ function parseHash(): Route {
   if (!raw) return FALLBACK;
 
   const [head, ...rest] = raw.split("/");
+  if (head === "functions") {
+    return { module: "functions", preset: rest.join("/"), twin: false, warm: 0 };
+  }
   if (head !== "chaos") return FALLBACK;
 
   let spec = rest.join("/");
@@ -33,7 +36,9 @@ function parseHash(): Route {
 }
 
 function hashFor(route: Route): string {
-  if (route.module !== "chaos") return "#functions";
+  if (route.module !== "chaos") {
+    return route.preset === "algebra" ? "#functions/algebra" : "#functions";
+  }
   const warm = route.warm > 0 ? `@${route.warm}` : "";
   return `#chaos/${route.preset}${route.twin ? "+twin" : ""}${warm}`;
 }
@@ -104,7 +109,7 @@ export default function App() {
 
       {ready ? (
         route.module === "functions" ? (
-          <Functions />
+          <Functions showcase={route.preset === "algebra"} />
         ) : (
           <Chaos
             presetId={route.preset}

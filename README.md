@@ -11,6 +11,7 @@ Mathematics, physics and biology — computed in Rust, rendered live in your bro
 [![container](https://img.shields.io/badge/ghcr.io-kosmos-60a5fa?style=for-the-badge&labelColor=0f1117&logo=docker&logoColor=white)](https://github.com/justinjd00/kosmos/pkgs/container/kosmos)
 [![license](https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=0f1117)](LICENSE)
 [![proved in Lean 4](https://img.shields.io/badge/calculus-proved%20in%20Lean%204-fb7185?style=for-the-badge&labelColor=0f1117)](proofs/)
+[![algebra in OCaml](https://img.shields.io/badge/algebra-OCaml-ee6a1a?style=for-the-badge&labelColor=0f1117)](cas/)
 
 **[Open it →](https://justinjd00.github.io/kosmos/)**
 
@@ -110,6 +111,101 @@ Errors carry the exact character position, so a typo gets underlined rather than
 
 Precedence comes from a Pratt parser, so `2^3^2` is $2^{(3^2)} = 512$ and `1-2-3` is
 $(1-2)-3 = -4$, exactly as mathematics expects. `3x^2` parses as $3x^2$, not $(3x)^2$.
+
+</details>
+
+<br>
+
+## Algebra, in OCaml
+
+<img src="docs/algebra.jpg" alt="The algebra panel: an antiderivative and a Taylor series computed in the browser, each with a button that plots the result as a new curve" width="100%">
+
+Press **algebra** on any function and a third language joins in. Integration, solving
+and series expansion are handled by a small computer-algebra module written in
+[OCaml](https://ocaml.org) and compiled to JavaScript — see [`cas/`](cas/).
+
+| | |
+|---|---|
+| **∫ dx** | a symbolic antiderivative, or an honest refusal |
+| **solve = 0** | every real root it can find |
+| **Taylor** | the series to any order up to 12 |
+| **simplify** | collect, fold and multiply out |
+
+Every result is one click from being plotted, so you can put a function and its
+antiderivative — or a function and its sixth-order approximation — on the same axes.
+
+### Why not just write it in Rust
+
+The engine already differentiates, and Rust is the right tool for that: it is one
+pass over a tree, and the result runs sixty times a second inside a bytecode
+interpreter with no allocation.
+
+Integration is a different shape of problem. There is no formula — it is a
+**search**: try the power rule, try substituting `u = g(x)`, try parts, back out
+and try the next rule, on immutable trees that are built and discarded by the
+thousand. In Rust that is `Box`, `clone` and lifetimes threaded through a
+backtracking search. In OCaml it is what the language was made for.
+
+```ocaml
+| Fn (name, [ arg ]) -> (
+    match slope_of arg with
+    | Some k -> ( match basic name arg with Some anti -> div anti k | None -> give_up ())
+    | None -> give_up ())
+```
+
+So each language keeps the job it is best at:
+
+```mermaid
+flowchart LR
+    L["<b>Lean 4</b><br/>proves the<br/>differentiation rules"] -->|"a corpus<br/>of numbers"| R
+    O["<b>OCaml</b><br/>integrates, solves,<br/>expands in series"] -->|"a table<br/>of answers"| R
+    R["<b>Rust → WebAssembly</b><br/>parses, compiles, evaluates<br/>60 times a second"]
+
+    style L fill:#0f1117,stroke:#fb7185,color:#e7eaf1
+    style O fill:#0f1117,stroke:#ee6a1a,color:#e7eaf1
+    style R fill:#0f1117,stroke:#5eead4,color:#e7eaf1
+```
+
+> [!IMPORTANT]
+> **No antiderivative is returned unchecked.** Before an answer leaves the module it
+> is differentiated again and compared against the original integrand at six points.
+> A wrong branch of the search therefore produces *"no closed form found"* — never a
+> wrong formula.
+
+And because two languages now describe the same mathematics, they are held to one
+table. [`cas/expected.txt`](cas/expected.txt) records what the module answers;
+[`core/tests/algebra.rs`](core/tests/algebra.rs) makes the **Rust** engine check it:
+every answer must parse with the Rust parser, every integral must differentiate back
+to its integrand under the Rust differentiator, and every series must hug its function
+near the centre. Neither implementation can drift without the other noticing.
+
+<details>
+<summary><b>What it knows, and what it does not</b></summary>
+
+<br>
+
+Integration covers the power rule, linearity, the standard forms, linear
+substitution, general substitution `u = g(x)` discovered by dividing by `g'(x)`,
+integration by parts, expansion of products of sums, the two quadratic denominators
+that give `atan` and `asin`, and the cyclic case `e^(kx)·sin(mx)`.
+
+```
+∫ x² sin(x) dx   →   -x²·cos(x) + 2x·sin(x) + 2cos(x)
+∫ 2x·e^(x²) dx   →   e^(x²)
+∫ 1/√(1-x²) dx   →   asin(x)
+∫ e^(-x²) dx     →   no closed form found
+```
+
+The last one has no elementary antiderivative at all. The module cannot tell that
+apart from an integral it merely failed to find — there is no Risch algorithm here —
+so a refusal means *"not found"*, not *"does not exist"*.
+
+Solving is closed-form to quadratics, Newton from four hundred starting points above
+that, and otherwise peels functions off the outside (`ln(x) = 0` → `x = e⁰`). Roots
+are substituted back into the original equation before being shown.
+
+Out of scope: complex numbers, matrices, assumptions about a variable's sign, and
+partial fractions.
 
 </details>
 
@@ -282,7 +378,8 @@ The `@` suffix is also what makes the screenshots in this README reproducible: t
 
 ## Self-hosting
 
-kosmos is a static site plus one `.wasm` file. Anything that can serve files can host it.
+kosmos is a static site plus one `.wasm` file and one `.js` file. Anything that can serve files
+can host it.
 
 <details open>
 <summary><b>Docker</b></summary>
@@ -352,6 +449,14 @@ cd ../web
 npm ci && npm run dev
 ```
 
+The algebra module ships pre-built as `web/public/cas.js`, so none of the above needs OCaml.
+Rebuilding it does:
+
+```sh
+sudo apt-get install ocaml ocaml-findlib js-of-ocaml
+cas/test.sh && cas/build.sh
+```
+
 > [!WARNING]
 > The dev server hot-reloads TypeScript but **not Rust**. After every change in `core/`, run
 > `wasm-pack build` again — otherwise the browser keeps running the old engine. This is the single
@@ -364,10 +469,13 @@ npm ci && npm run dev
 ## Tests
 
 ```sh
-cd core && cargo test
+cd core && cargo test      # the engine, plus both cross-language contracts
+cas/test.sh                # the algebra module, natively
+node cas/check.mjs         # the shipped algebra bundle
+tools/verify.ps1           # the Lean proofs, and the corpus they generate
 ```
 
-40 tests, no `unsafe`, six dependencies.
+46 tests in the engine, no `unsafe`, six dependencies.
 
 | Area | What is checked |
 |---|---|
@@ -376,6 +484,8 @@ cd core && cargo test
 | **Calculus** | chain, product and quotient rule, $x^x$ — all against finite differences |
 | **Plotting** | poles vs. roots, curvature-driven sampling, undefined regions |
 | **Dynamics** | boundedness, energy conservation, orbital periodicity, exponential divergence |
+| **Against Lean** | the shipped derivatives must match numbers generated from the proved rules |
+| **Against OCaml** | every algebra answer must parse, and every integral must differentiate back |
 
 <br>
 
@@ -384,7 +494,9 @@ cd core && cargo test
 - [x] **Functions** — expression language, symbolic calculus, adaptive plotting
 - [x] **Chaos** — eight systems, RK4, butterfly twin, deep links
 - [x] **Proofs** — differentiation and simplification machine-checked in Lean 4
+- [x] **Algebra** — integration, solving and series in OCaml, compiled to JavaScript
 - [ ] **Proofs, part two** — `ln`, `sqrt` and `tan` with their domain conditions
+- [ ] **Algebra, part two** — partial fractions, and factoring polynomials over the rationals
 - [ ] **Fields** — the wave equation, heat diffusion, electrostatics, solved live
 - [ ] **Life** — Turing patterns, predator–prey dynamics, epidemics, cellular automata
 

@@ -3,6 +3,9 @@ node_modules/
 dist/
 web/src/wasm/
 
+cas/.build/
+cas/.test/
+
 .lake/
 proofs/*.log
 proofs/*.txt

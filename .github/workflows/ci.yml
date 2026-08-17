@@ -58,6 +58,26 @@ jobs:
           lake env lean --run Proofs/Bridge.lean > regenerated.txt
           diff --strip-trailing-cr -u ../core/tests/verified-derivatives.txt regenerated.txt
 
+  algebra:
+    name: ocaml algebra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install the compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y ocaml ocaml-findlib js-of-ocaml
+
+      - name: the module must agree with itself
+        run: bash cas/test.sh
+
+      - name: the shipped bundle must behave
+        run: node cas/check.mjs
+
+      - name: rebuilding must not change the answers
+        run: |
+          bash cas/build.sh /tmp/cas.js
+          node cas/check.mjs /tmp/cas.js
+
   web:
     name: wasm + web build
     runs-on: ubuntu-latest

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Plot, { type Track, type View } from "./Plot";
 import { compile, PALETTE, PARAM_NAMES, type Compiled, type SyntaxError } from "../lib/engine";
+import { algebra, UNAVAILABLE, type CasResult } from "../lib/cas";
+
+type Tool = "simplify" | "integral" | "solve" | "taylor";
+
+type Answer = { tool: Tool; ok: boolean; text: string; plottable: boolean };
 
 type Entry = {
   id: string;
@@ -9,6 +14,10 @@ type Entry = {
   visible: boolean;
   derivative: boolean;
   markers: boolean;
+  tools: boolean;
+  order: number;
+  answer: Answer | null;
+  busy: boolean;
   error: SyntaxError | null;
 };
 
@@ -18,6 +27,18 @@ const SEEDS: { source: string; derivative: boolean; markers: boolean }[] = [
   { source: "sin(x)", derivative: true, markers: false },
   { source: "0.4x^2 - 3", derivative: false, markers: true },
 ];
+
+const SHOWCASE: { source: string; derivative: boolean; markers: boolean }[] = [
+  { source: "x^2*sin(x)", derivative: false, markers: false },
+  { source: "cos(x)/(1+x^2)", derivative: false, markers: false },
+];
+
+const LABEL: Record<Tool, string> = {
+  simplify: "simplified",
+  integral: "∫ f(x) dx",
+  solve: "f(x) = 0",
+  taylor: "Taylor series",
+};
 
 let counter = 0;
 
@@ -30,13 +51,20 @@ function blank(source: string, derivative = false, markers = false): Entry {
     visible: true,
     derivative,
     markers,
+    tools: false,
+    order: 6,
+    answer: null,
+    busy: false,
     error: null,
   };
 }
 
-export default function Functions() {
+export default function Functions({ showcase = false }: { showcase?: boolean }) {
   const [entries, setEntries] = useState<Entry[]>(() =>
-    SEEDS.map((seed) => blank(seed.source, seed.derivative, seed.markers)),
+    (showcase ? SHOWCASE : SEEDS).map((seed) => {
+      const entry = blank(seed.source, seed.derivative, seed.markers);
+      return showcase ? { ...entry, tools: true } : entry;
+    }),
   );
   const [view, setView] = useState<View>(DEFAULT_VIEW);
   const [params, setParams] = useState<[number, number, number, number]>([1, 1, 1, 1]);
@@ -99,18 +127,20 @@ export default function Functions() {
     };
   }, [playing]);
 
+  const patch = (id: string, change: Partial<Entry>) =>
+    setEntries((current) =>
+      current.map((entry) => (entry.id === id ? { ...entry, ...change } : entry)),
+    );
+
   const setSource = (id: string, source: string) => {
     const error = applySource(id, source);
-    setEntries((current) =>
-      current.map((entry) => (entry.id === id ? { ...entry, source, error } : entry)),
-    );
+    patch(id, { source, error, answer: null });
   };
 
-  const toggle = (id: string, key: "visible" | "derivative" | "markers") => {
+  const toggle = (id: string, key: "visible" | "derivative" | "markers" | "tools") =>
     setEntries((current) =>
       current.map((entry) => (entry.id === id ? { ...entry, [key]: !entry[key] } : entry)),
     );
-  };
 
   const remove = (id: string) => {
     handles.current.get(id)?.handle.free();
@@ -118,7 +148,46 @@ export default function Functions() {
     setEntries((current) => current.filter((entry) => entry.id !== id));
   };
 
-  const add = () => setEntries((current) => [...current, blank("")]);
+  const add = () => {
+    const entry = blank("");
+    setEntries((current) => [...current, entry]);
+  };
+
+  const plot = (source: string) => {
+    const entry = blank(source);
+    const error = applySource(entry.id, source);
+    setEntries((current) => [...current, { ...entry, error }]);
+  };
+
+  const ask = async (entry: Entry, tool: Tool) => {
+    patch(entry.id, { busy: true, answer: null });
+    const bridge = await algebra();
+    if (!bridge) {
+      patch(entry.id, { busy: false, answer: { tool, ok: false, text: UNAVAILABLE, plottable: false } });
+      return;
+    }
+    let result: CasResult;
+    try {
+      result =
+        tool === "taylor"
+          ? bridge.taylor(entry.source, "x", 0, entry.order)
+          : bridge[tool](entry.source, "x");
+    } catch {
+      result = { ok: false, text: "the algebra module failed on this input" };
+    }
+    patch(entry.id, {
+      busy: false,
+      answer: { tool, ok: result.ok, text: result.text, plottable: result.ok && tool !== "solve" },
+    });
+  };
+
+  useEffect(() => {
+    if (!showcase) return;
+    const [first, second] = entries;
+    if (first) void ask(first, "integral");
+    if (second) void ask(second, "taylor");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showcase]);
 
   const tracks: Track[] = entries
     .filter((entry) => entry.visible && handles.current.has(entry.id))
@@ -198,11 +267,67 @@ export default function Functions() {
                     >
                       roots &amp; extrema
                     </button>
+                    <button
+                      className={entry.tools ? "chip on" : "chip"}
+                      onClick={() => toggle(entry.id, "tools")}
+                    >
+                      algebra
+                    </button>
                   </div>
                 )}
 
                 {compiled && entry.derivative && (
                   <div className="derivative">f′(x) = {compiled.handle.derivativeText()}</div>
+                )}
+
+                {compiled && entry.tools && (
+                  <div className="algebra">
+                    <div className="algebra-row">
+                      <button className="chip" onClick={() => ask(entry, "simplify")}>
+                        simplify
+                      </button>
+                      <button className="chip" onClick={() => ask(entry, "integral")}>
+                        ∫ dx
+                      </button>
+                      <button className="chip" onClick={() => ask(entry, "solve")}>
+                        solve = 0
+                      </button>
+                      <button className="chip" onClick={() => ask(entry, "taylor")}>
+                        Taylor
+                      </button>
+                      <span className="stepper">
+                        <button
+                          className="ghost"
+                          onClick={() => patch(entry.id, { order: Math.max(1, entry.order - 1) })}
+                          title="Lower the series order"
+                        >
+                          −
+                        </button>
+                        <span className="stepper-value">{entry.order}</span>
+                        <button
+                          className="ghost"
+                          onClick={() => patch(entry.id, { order: Math.min(12, entry.order + 1) })}
+                          title="Raise the series order"
+                        >
+                          +
+                        </button>
+                      </span>
+                    </div>
+
+                    {entry.busy && <div className="algebra-answer waiting">working…</div>}
+
+                    {!entry.busy && entry.answer && (
+                      <div className={entry.answer.ok ? "algebra-answer" : "algebra-answer failed"}>
+                        <span className="algebra-label">{LABEL[entry.answer.tool]}</span>
+                        <code>{entry.answer.text}</code>
+                        {entry.answer.plottable && (
+                          <button className="chip" onClick={() => plot(entry.answer!.text)}>
+                            plot it
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             );
