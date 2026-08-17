@@ -10,6 +10,7 @@ Mathematics, physics and biology — computed in Rust, rendered live in your bro
 [![live demo](https://img.shields.io/badge/live-demo-a78bfa?style=for-the-badge&labelColor=0f1117)](https://justinjd00.github.io/kosmos/)
 [![container](https://img.shields.io/badge/ghcr.io-kosmos-60a5fa?style=for-the-badge&labelColor=0f1117&logo=docker&logoColor=white)](https://github.com/justinjd00/kosmos/pkgs/container/kosmos)
 [![license](https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=0f1117)](LICENSE)
+[![proved in Lean 4](https://img.shields.io/badge/calculus-proved%20in%20Lean%204-fb7185?style=for-the-badge&labelColor=0f1117)](proofs/)
 
 **[Open it →](https://justinjd00.github.io/kosmos/)**
 
@@ -181,6 +182,48 @@ the models are bad, but because the atmosphere multiplies every measurement erro
 
 <br>
 
+## The calculus is machine-checked
+
+Testing a derivative means picking a few functions and a few points. That catches
+blunders, not subtleties — and a wrong rule that happens to agree at `x = 1` will
+sail through.
+
+So the differentiation rules are also **proved**, in [Lean 4](https://lean-lang.org)
+against [Mathlib](https://github.com/leanprover-community/mathlib4). The expression
+tree, the evaluator and the differentiator are mirrored in
+[`proofs/`](proofs/), and the theorem says what you would want it to say:
+
+$$\forall\, e \in \texttt{Expr},\ \forall x \in \mathbb{R}: \quad \texttt{HasDerivAt}\ (\texttt{eval } e)\ \big(\texttt{eval } (\texttt{derive } e)\ x\big)\ x$$
+
+For every expression the engine can build, at every point of the real line. Not
+sampled — proved, by induction over the expression tree. A second theorem covers
+the simplifier: `eval (simplify e) x = eval e x`, so rewriting can never change
+what an expression means.
+
+> [!NOTE]
+> `#print axioms` reports only Lean's three standard axioms — `propext`,
+> `Classical.choice`, `Quot.sound`. No `sorryAx`, so there are no holes, and CI
+> fails if one ever appears.
+
+**Where the guarantee stops.** Those theorems are about the Lean definitions, not
+about `calculus.rs` — Lean cannot see the Rust file. The gap is narrowed by
+generating test data *from the verified function*: `proofs/Proofs/Bridge.lean`
+evaluates the proved derivative and writes
+[`core/tests/verified-derivatives.txt`](core/tests/verified-derivatives.txt), and
+the Rust suite must reproduce every number with its own rules, plus agree with the
+printed derivative across a further 1,600 points. CI regenerates the file and
+fails on any difference, so the two cannot drift apart unnoticed.
+
+That is weaker than extracting verified code and stronger than a hand-written test
+suite. Stated plainly rather than dressed up.
+
+The proved fragment is `+ - * ^ sin cos exp` and every composition of them —
+differentiable everywhere, so the theorem needs no side conditions. Division,
+`ln`, `sqrt` and `tan` have domain holes and need explicit hypotheses; that is
+the next piece.
+
+<br>
+
 ## Two systems that double as proofs
 
 Simulations are easy to get subtly wrong, because *plausible* and *correct* look the same on
@@ -340,6 +383,8 @@ cd core && cargo test
 
 - [x] **Functions** — expression language, symbolic calculus, adaptive plotting
 - [x] **Chaos** — eight systems, RK4, butterfly twin, deep links
+- [x] **Proofs** — differentiation and simplification machine-checked in Lean 4
+- [ ] **Proofs, part two** — `ln`, `sqrt` and `tan` with their domain conditions
 - [ ] **Fields** — the wave equation, heat diffusion, electrostatics, solved live
 - [ ] **Life** — Turing patterns, predator–prey dynamics, epidemics, cellular automata
 

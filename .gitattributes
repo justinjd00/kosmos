@@ -1,0 +1,4 @@
+# The verified corpus is generated and diffed in CI, so it must be byte-identical
+# on every platform.
+core/tests/verified-derivatives.txt text eol=lf
+*.lean text eol=lf

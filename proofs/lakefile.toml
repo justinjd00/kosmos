@@ -1,0 +1,20 @@
+name = "proofs"
+version = "0.1.0"
+keywords = ["math"]
+defaultTargets = ["Proofs"]
+
+[leanOptions]
+pp.unicode.fun = true # pretty-prints `fun a ↦ b`
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+# Mathlib's header linter insists on the exact Apache wording; this project is MIT.
+weak.linter.style.header = false
+maxSynthPendingDepth = 3
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.33.0"
+
+[[lean_lib]]
+name = "Proofs"

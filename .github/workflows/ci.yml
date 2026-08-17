@@ -28,6 +28,36 @@ jobs:
       - run: cargo test
         working-directory: core
 
+  proofs:
+    name: lean proofs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: "proofs"
+          build: true
+          use-mathlib-cache: true
+          test: false
+          lint: false
+
+      - name: nothing may be assumed
+        working-directory: proofs
+        run: |
+          printf 'import Proofs\n#print axioms Kosmos.hasDerivAt_eval\n#print axioms Kosmos.simplify_eval\n' > axioms.lean
+          lake env lean axioms.lean | tee axioms.out
+          if grep -q sorryAx axioms.out; then
+            echo "::error::a proof still depends on sorry"
+            exit 1
+          fi
+
+      - name: the shipped corpus must match the proofs
+        working-directory: proofs
+        run: |
+          lake env lean --run Proofs/Bridge.lean > regenerated.txt
+          diff --strip-trailing-cr -u ../core/tests/verified-derivatives.txt regenerated.txt
+
   web:
     name: wasm + web build
     runs-on: ubuntu-latest

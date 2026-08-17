@@ -3,6 +3,13 @@ node_modules/
 dist/
 web/src/wasm/
 
+.lake/
+proofs/*.log
+proofs/*.txt
+proofs/*.out
+proofs/regenerated.txt
+proofs/axioms.lean
+
 notes/
 /notes
 
