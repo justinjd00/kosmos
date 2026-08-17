@@ -2,6 +2,7 @@ pub mod calculus;
 pub mod dynamics;
 pub mod eval;
 pub mod expr;
+pub mod field;
 pub mod plot;
 
 use wasm_bindgen::prelude::*;
@@ -466,6 +467,184 @@ pub fn system_names() -> Vec<String> {
     .iter()
     .map(|s| s.to_string())
     .collect()
+}
+
+const SHEET_MIN: usize = 32;
+const SHEET_MAX: usize = 1024;
+
+#[wasm_bindgen]
+pub struct Sheet {
+    field: field::Field,
+    preset: String,
+}
+
+#[wasm_bindgen]
+impl Sheet {
+    #[wasm_bindgen(constructor)]
+    pub fn new(preset: &str, width: usize, height: usize) -> Result<Sheet, String> {
+        if !(SHEET_MIN..=SHEET_MAX).contains(&width) || !(SHEET_MIN..=SHEET_MAX).contains(&height) {
+            return Err(format!("a {width}x{height} grid is out of range"));
+        }
+        let field = field::Field::build(preset, width, height)
+            .ok_or_else(|| format!("unknown field '{preset}'"))?;
+        Ok(Sheet {
+            field,
+            preset: preset.to_string(),
+        })
+    }
+
+    pub fn preset(&self) -> String {
+        self.preset.clone()
+    }
+
+    pub fn kind(&self) -> String {
+        match self.field.kind() {
+            field::Kind::Wave => "wave",
+            field::Kind::Heat => "heat",
+            field::Kind::Charge => "charge",
+        }
+        .to_string()
+    }
+
+    pub fn evolves(&self) -> bool {
+        self.field.kind().evolves()
+    }
+
+    pub fn load(&mut self, preset: &str) -> Result<(), String> {
+        let entry = field::preset(preset).ok_or_else(|| format!("unknown field '{preset}'"))?;
+        if entry.kind != self.field.kind() {
+            return Err("that field needs a different grid".to_string());
+        }
+        self.field.apply(preset);
+        self.preset = preset.to_string();
+        Ok(())
+    }
+
+    pub fn reset(&mut self) {
+        let preset = self.preset.clone();
+        self.field.apply(&preset);
+    }
+
+    pub fn advance(&mut self, seconds: f64) -> usize {
+        self.field.advance(seconds.clamp(0.0, 0.25))
+    }
+
+    pub fn paint(&mut self, gain: f64, contours: bool) -> *const u8 {
+        self.field.paint(gain, contours).as_ptr()
+    }
+
+    pub fn bytes(&self) -> usize {
+        self.field.width() * self.field.height() * 4
+    }
+
+    pub fn width(&self) -> usize {
+        self.field.width()
+    }
+
+    pub fn height(&self) -> usize {
+        self.field.height()
+    }
+
+    pub fn time(&self) -> f64 {
+        self.field.time()
+    }
+
+    pub fn energy(&self) -> f64 {
+        self.field.energy()
+    }
+
+    pub fn probe(&self, x: f64, y: f64) -> f64 {
+        self.field.probe(x.clamp(0.0, 1.0), y.clamp(0.0, 1.0))
+    }
+
+    pub fn poke(&mut self, x: f64, y: f64, radius: f64, amount: f64) {
+        self.field
+            .poke(x.clamp(0.0, 1.0), y.clamp(0.0, 1.0), radius, amount);
+    }
+
+    pub fn wall(&mut self, x: f64, y: f64, radius: f64, solid: bool) {
+        self.field
+            .wall(x.clamp(0.0, 1.0), y.clamp(0.0, 1.0), radius, solid);
+    }
+
+    #[wasm_bindgen(js_name = clearWalls)]
+    pub fn clear_walls(&mut self) {
+        self.field.clear_geometry();
+    }
+
+    #[wasm_bindgen(js_name = setSpeed)]
+    pub fn set_speed(&mut self, value: f64) {
+        self.field.set_speed(value);
+    }
+
+    #[wasm_bindgen(js_name = setDamping)]
+    pub fn set_damping(&mut self, value: f64) {
+        self.field.set_damping(value);
+    }
+
+    #[wasm_bindgen(js_name = setDiffusivity)]
+    pub fn set_diffusivity(&mut self, value: f64) {
+        self.field.set_diffusivity(value);
+    }
+
+    #[wasm_bindgen(js_name = setEdge)]
+    pub fn set_edge(&mut self, absorbing: bool) {
+        self.field.set_edge(if absorbing {
+            field::Edge::Absorb
+        } else {
+            field::Edge::Reflect
+        });
+    }
+
+    pub fn speed(&self) -> f64 {
+        self.field.speed()
+    }
+
+    pub fn damping(&self) -> f64 {
+        self.field.damping()
+    }
+
+    pub fn diffusivity(&self) -> f64 {
+        self.field.diffusivity()
+    }
+
+    pub fn absorbing(&self) -> bool {
+        self.field.edge() == field::Edge::Absorb
+    }
+
+    #[wasm_bindgen(js_name = sourceCount)]
+    pub fn source_count(&self) -> usize {
+        self.field.sources().len()
+    }
+
+    pub fn sources(&self) -> Vec<f64> {
+        self.field
+            .sources()
+            .iter()
+            .flat_map(|s| [s.x, s.y, s.strength, s.span])
+            .collect()
+    }
+
+    #[wasm_bindgen(js_name = moveSource)]
+    pub fn move_source(&mut self, index: usize, x: f64, y: f64) {
+        self.field
+            .move_source(index, x.clamp(0.0, 1.0), y.clamp(0.0, 1.0));
+    }
+}
+
+#[wasm_bindgen(js_name = fieldPresets)]
+pub fn field_presets() -> Vec<String> {
+    field::PRESETS
+        .iter()
+        .map(|entry| {
+            let kind = match entry.kind {
+                field::Kind::Wave => "wave",
+                field::Kind::Heat => "heat",
+                field::Kind::Charge => "charge",
+            };
+            format!("{}:{}", entry.id, kind)
+        })
+        .collect()
 }
 
 #[wasm_bindgen(js_name = checkSyntax)]

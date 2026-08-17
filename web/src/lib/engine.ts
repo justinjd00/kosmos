@@ -1,12 +1,26 @@
-import init, { Function as WasmFunction, niceStep } from "../wasm/kosmos.js";
+import init, {
+  Function as WasmFunction,
+  niceStep,
+  type InitOutput,
+} from "../wasm/kosmos.js";
 
 let ready: Promise<void> | null = null;
+let engine: InitOutput | null = null;
 
 export function boot(): Promise<void> {
   if (!ready) {
-    ready = init().then(() => undefined);
+    ready = init().then((output) => {
+      engine = output;
+    });
   }
   return ready;
+}
+
+export function view(pointer: number, length: number): Uint8ClampedArray<ArrayBuffer> {
+  if (!engine) {
+    throw new Error("the engine has not started yet");
+  }
+  return new Uint8ClampedArray(engine.memory.buffer as ArrayBuffer, pointer, length);
 }
 
 export type SyntaxError = { message: string; at: number };

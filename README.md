@@ -211,6 +211,66 @@ partial fractions.
 
 <br>
 
+<br>
+
+## Fields
+
+<img src="docs/double-slit.jpg" alt="Young's double slit: a plane wave meets a wall with two gaps and lands behind it as a fan of interference fringes" width="100%">
+
+A wave equation, a diffusion equation and an electrostatic potential, each solved on a
+480 × 270 grid — 129,600 cells, restepped from their four neighbours **eight times per
+frame**. The grid never leaves WebAssembly: Rust writes finished RGBA bytes into linear
+memory and the canvas reads them straight out of it.
+
+$$\frac{\partial^2 u}{\partial t^2} = c^2 \nabla^2 u
+\qquad
+\frac{\partial u}{\partial t} = \alpha \nabla^2 u
+\qquad
+V(\mathbf{r}) = \sum_i \frac{q_i}{|\mathbf{r} - \mathbf{r}_i|}$$
+
+<table>
+<tr>
+<td width="50%"><img src="docs/lens.jpg" alt="A disc of slower medium turns plane crests into a focus"></td>
+<td width="50%"><img src="docs/harbour.jpg" alt="Waves entering a harbour through a narrow mouth"></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/hotspot.jpg" alt="A hot spot cooling on a plate, drawn with isotherms"></td>
+<td width="50%"><img src="docs/dipole.jpg" alt="The potential of a dipole with equipotential contours"></td>
+</tr>
+</table>
+
+Click to drop a pulse, shift-drag to build a wall, drag a charge to move it. Twelve
+starting points: **ripples · double slit · single slit · lens · drumhead · harbour ·
+hot spot · radiator · insulation · dipole · quadrupole · capacitor**.
+
+<details>
+<summary><b>The parts that are easy to get wrong</b></summary>
+
+<br>
+
+**Open edges.** A reflecting boundary is one line of code and turns every simulation into
+a box. The absorbing boundary here is a first-order Mur condition — the edge cell is
+told what the wave *would* have done had the grid continued:
+
+$$u^{n+1}_0 = u^{n}_1 + \frac{c-1}{c+1}\left(u^{n+1}_1 - u^{n}_0\right)$$
+
+**A soft source.** Writing the driving value straight into a cell makes that cell a
+perfect mirror, and the region in front of it fills with reflections that were never
+emitted. Adding to the cell instead leaves it transparent to whatever comes back.
+
+**Tone mapping, not clipping.** In front of a barrier the wave is at double amplitude;
+behind two slits it is a few percent of that. A linear scale can show one or the other.
+Everything is passed through `tanh` against the running mean instead, so the loud regions
+compress rather than clip.
+
+**Time step.** The explicit scheme is stable only while $c\,\Delta t/\Delta x \le
+1/\sqrt{2}$, so the speed slider stops at 0.5. Past that the grid does not get
+inaccurate — it detonates.
+
+</details>
+
+<br>
+
 ## Chaos
 
 Eight systems, integrated live with fourth-order Runge–Kutta. Drag to rotate the spatial ones.
@@ -475,7 +535,7 @@ node cas/check.mjs         # the shipped algebra bundle
 tools/verify.ps1           # the Lean proofs, and the corpus they generate
 ```
 
-46 tests in the engine, no `unsafe`, six dependencies.
+60 tests in the engine, no `unsafe`, six dependencies.
 
 | Area | What is checked |
 |---|---|
@@ -484,6 +544,7 @@ tools/verify.ps1           # the Lean proofs, and the corpus they generate
 | **Calculus** | chain, product and quotient rule, $x^x$ — all against finite differences |
 | **Plotting** | poles vs. roots, curvature-driven sampling, undefined regions |
 | **Dynamics** | boundedness, energy conservation, orbital periodicity, exponential divergence |
+| **Fields** | energy conservation in a closed box, one slit vs. two, focusing, shadows, $1/r$ |
 | **Against Lean** | the shipped derivatives must match numbers generated from the proved rules |
 | **Against OCaml** | every algebra answer must parse, and every integral must differentiate back |
 
@@ -495,9 +556,9 @@ tools/verify.ps1           # the Lean proofs, and the corpus they generate
 - [x] **Chaos** — eight systems, RK4, butterfly twin, deep links
 - [x] **Proofs** — differentiation and simplification machine-checked in Lean 4
 - [x] **Algebra** — integration, solving and series in OCaml, compiled to JavaScript
+- [x] **Fields** — the wave equation, heat diffusion and electrostatics, solved live
 - [ ] **Proofs, part two** — `ln`, `sqrt` and `tan` with their domain conditions
 - [ ] **Algebra, part two** — partial fractions, and factoring polynomials over the rationals
-- [ ] **Fields** — the wave equation, heat diffusion, electrostatics, solved live
 - [ ] **Life** — Turing patterns, predator–prey dynamics, epidemics, cellular automata
 
 <br>

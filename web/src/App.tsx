@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Chaos, { PRESETS } from "./components/Chaos";
+import Fields, { FIELDS } from "./components/Fields";
 import Functions from "./components/Functions";
 import { boot } from "./lib/engine";
 
-type Module = "functions" | "chaos";
+type Module = "functions" | "chaos" | "fields";
 
 export type Route = { module: Module; preset: string; twin: boolean; warm: number };
 
@@ -17,7 +18,7 @@ function parseHash(): Route {
   if (head === "functions") {
     return { module: "functions", preset: rest.join("/"), twin: false, warm: 0 };
   }
-  if (head !== "chaos") return FALLBACK;
+  if (head !== "chaos" && head !== "fields") return FALLBACK;
 
   let spec = rest.join("/");
   let warm = 0;
@@ -28,6 +29,16 @@ function parseHash(): Route {
     spec = spec.slice(0, at);
   }
 
+  if (head === "fields") {
+    const known = FIELDS.some((entry) => entry.id === spec);
+    return {
+      module: "fields",
+      preset: known ? spec : "ripples",
+      twin: false,
+      warm: Math.min(warm, 30),
+    };
+  }
+
   const twin = spec.endsWith("+twin");
   const preset = twin ? spec.slice(0, -"+twin".length) : spec;
   const known = PRESETS.some((entry) => entry.id === preset);
@@ -36,16 +47,20 @@ function parseHash(): Route {
 }
 
 function hashFor(route: Route): string {
-  if (route.module !== "chaos") {
-    return route.preset === "algebra" ? "#functions/algebra" : "#functions";
-  }
   const warm = route.warm > 0 ? `@${route.warm}` : "";
-  return `#chaos/${route.preset}${route.twin ? "+twin" : ""}${warm}`;
+  if (route.module === "chaos") {
+    return `#chaos/${route.preset}${route.twin ? "+twin" : ""}${warm}`;
+  }
+  if (route.module === "fields") {
+    return `#fields/${route.preset}${warm}`;
+  }
+  return route.preset === "algebra" ? "#functions/algebra" : "#functions";
 }
 
 const HINTS: Record<Module, string> = {
   functions: "Drag to pan · Scroll to zoom · Double-click to reset",
   chaos: "Drag to rotate · every trajectory is integrated live",
+  fields: "Every cell is stepped from its four neighbours, sixty times a second",
 };
 
 export default function App() {
@@ -93,11 +108,14 @@ export default function App() {
           </button>
           <button
             className={route.module === "chaos" ? "module active" : "module"}
-            onClick={() => setRoute({ ...route, module: "chaos" })}
+            onClick={() => setRoute({ ...route, module: "chaos", preset: "lorenz", warm: 0 })}
           >
             Chaos
           </button>
-          <button className="module" disabled title="coming next">
+          <button
+            className={route.module === "fields" ? "module active" : "module"}
+            onClick={() => setRoute({ ...route, module: "fields", preset: "ripples", warm: 0 })}
+          >
             Fields
           </button>
           <button className="module" disabled title="coming next">
@@ -110,6 +128,8 @@ export default function App() {
       {ready ? (
         route.module === "functions" ? (
           <Functions showcase={route.preset === "algebra"} />
+        ) : route.module === "fields" ? (
+          <Fields presetId={route.preset} onPreset={setPreset} warm={route.warm} />
         ) : (
           <Chaos
             presetId={route.preset}

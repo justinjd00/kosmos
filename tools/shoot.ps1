@@ -2,7 +2,8 @@ param(
     [string]$BaseUrl = "http://127.0.0.1:4173",
     [string]$OutDir = "$PSScriptRoot\..\docs",
     [int]$Width = 1680,
-    [int]$Height = 960
+    [int]$Height = 960,
+    [string]$Only = ""
 )
 
 $chrome = "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe"
@@ -24,13 +25,24 @@ $shots = @(
     @{ name = "three-body"; hash = "#chaos/three-body@30" },
     @{ name = "aizawa"; hash = "#chaos/aizawa@120" },
     @{ name = "thomas"; hash = "#chaos/thomas@300" },
-    @{ name = "halvorsen"; hash = "#chaos/halvorsen@90" }
+    @{ name = "halvorsen"; hash = "#chaos/halvorsen@90" },
+    @{ name = "double-slit"; hash = "#fields/double-slit@8" },
+    @{ name = "lens"; hash = "#fields/lens@7" },
+    @{ name = "drum"; hash = "#fields/drum@2.5" },
+    @{ name = "harbour"; hash = "#fields/harbour@9" },
+    @{ name = "hotspot"; hash = "#fields/hotspot@4" },
+    @{ name = "dipole"; hash = "#fields/dipole" }
 )
+
+if ($Only -ne "") {
+    $wanted = $Only.Split(",") | ForEach-Object { $_.Trim() }
+    $shots = $shots | Where-Object { $wanted -contains $_.name }
+}
 
 foreach ($shot in $shots) {
     $target = Join-Path $OutDir "$($shot.name).png"
     $url = "$BaseUrl/$($shot.hash)"
-    $sandbox = Join-Path $env:TEMP "kosmos-shot-$($shot.name)"
+    $sandbox = Join-Path $env:TEMP "kosmos-shot-$PID-$($shot.name)"
 
     Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue
     Remove-Item -Force $target -ErrorAction SilentlyContinue
