@@ -553,37 +553,89 @@ tools/verify.ps1           # the Lean proofs, and the corpus they generate
 ## Roadmap
 
 kosmos is meant to be usable for real work — a chemist checking a structure, a student
-preparing an exam, a paper that needs a figure. That means every answer has to be
-computed from the input, defensible, and exportable.
+preparing an exam, a paper that needs a figure. Three commitments follow from that, and
+they are not phases:
 
-**Shipped**
+> [!IMPORTANT]
+> **No account, ever.** Nothing here asks for a login, an email, or consent to a cookie.
+> If a feature cannot work without one, it does not ship.
+>
+> **Every number is defensible.** It says which definition it used, how it was computed,
+> and what to cite.
+>
+> **Nothing leaves your machine.** Enforced by a test, not promised in a paragraph
+> ([#27](../../issues/27)).
+
+<br>
+
+### Shipped
 
 - [x] **Functions** — expression language, symbolic calculus, adaptive plotting
 - [x] **Chaos** — eight systems, RK4, butterfly twin, deep links
 - [x] **Proofs** — differentiation and simplification machine-checked in Lean 4
 - [x] **Algebra** — integration, solving and series in OCaml, compiled to JavaScript
 - [x] **Fields** — the wave equation, heat diffusion and electrostatics, solved live
+- [x] **Chemistry, the foundations** — periodic table with cited constants, SMILES parser,
+      molecular graph, polar surface area
 
-**Molecules** — the next module. A SMILES string in, a correct structural formula, a
-relaxed 3D model and a table of computed properties out, each one exportable.
+<br>
 
-- [x] Periodic table with cited constants — CIAAW 2021, AME2020, Cordero 2008, Alvarez 2013
-- [x] SMILES parser, molecular graph, ring perception, implicit hydrogens
-- [x] Topological polar surface area, after Ertl 2000
-- [ ] [#1](../../issues/1) Molecular descriptors — formula, exact and average mass, unsaturation, rotatable bonds, donors and acceptors
-- [ ] [#2](../../issues/2) 2D structure diagrams and publication-quality SVG
-- [ ] [#3](../../issues/3) 3D geometry from connectivity, relaxed with a force field
-- [ ] [#4](../../issues/4) Interactive 3D view in the browser
-- [ ] [#5](../../issues/5) Export — SVG, PNG, MOL, XYZ, PDB, CSV, JSON
-- [ ] [#6](../../issues/6) A provenance stamp on every export, so a result can be reproduced exactly
-- [ ] [#7](../../issues/7) The Molecules module in the interface
+### Now
 
-**After that**
+The molecules module, plus three things that get more expensive the longer they wait.
 
-- [ ] [#8](../../issues/8) **Nucleic acids** — FASTA in, sequence map, GC content, ORFs, melting temperature, and a B-DNA helix in 3D
-- [ ] [#9](../../issues/9) **Proofs, part two** — `ln`, `sqrt` and `tan` with their domain conditions
-- [ ] [#10](../../issues/10) **Algebra, part two** — partial fractions, and factoring polynomials over the rationals
-- [ ] [#11](../../issues/11) **Life** — Turing patterns, predator–prey dynamics, epidemics, cellular automata
+| | |
+|---|---|
+| [#18](../../issues/18) | **Make kosmos citable** — `CITATION.cff` and a DOI per release. An afternoon's work, and releases made before it exists can never be cited properly |
+| [#13](../../issues/13) | **Design system** — an instrument, not a dashboard. Every module built after it inherits it; every module built before it has to be redone |
+| [#16](../../issues/16) | **Accessibility to WCAG 2.2 AA** — a legal gate for schools and public institutions, and far cheaper now than across five modules |
+| [#1](../../issues/1) | Molecular descriptors — formula, exact mass, unsaturation, donors and acceptors |
+| [#2](../../issues/2) | 2D structure diagrams and publication-quality SVG |
+| [#15](../../issues/15) | Every number explains itself — the design detail that *is* the rigour feature |
+
+<br>
+
+### Next
+
+Finish molecules, then make it reachable.
+
+| | |
+|---|---|
+| [#3](../../issues/3) [#4](../../issues/4) | 3D geometry from connectivity, relaxed with a force field, and an interactive view |
+| [#5](../../issues/5) [#6](../../issues/6) | Export — SVG, PNG, MOL, SDF, XYZ, PDB, CSV, JSON — each carrying a provenance stamp |
+| [#7](../../issues/7) | The molecules module in the interface |
+| [#20](../../issues/20) | Permalinks that carry the whole state, with no account and no server |
+| [#19](../../issues/19) | A validation report, published and versioned |
+| [#23](../../issues/23) | `@kosmos/engine` on npm — the engine as a library, with the app as its first consumer |
+| [#17](../../issues/17) | Responsive and touch |
+| [#22](../../issues/22) | Works offline — exam rooms, air-gapped labs, planes |
+
+<br>
+
+### Later
+
+The parts that decide whether it becomes a norm rather than a bookmark.
+
+| | |
+|---|---|
+| [#21](../../issues/21) | **Embed kosmos anywhere** — custom elements, iframe, oEmbed. Mermaid spread because GitHub rendered it, not because its website was good |
+| [#24](../../issues/24) | **kosmos for Python** — the largest single lever for getting into actual laboratories |
+| [#25](../../issues/25) | A command-line kosmos. Things that live in Makefiles do not get replaced |
+| [#27](../../issues/27) | What an IT department needs to say yes — SBOM, signed reproducible builds, a tested "no network" guarantee |
+| [#26](../../issues/26) | Speak the reader's language, German first |
+| [#28](../../issues/28) | Worksheets and a gallery of worked examples |
+| [#8](../../issues/8) | **Nucleic acids** — FASTA in, sequence map, ORFs, melting temperature, a B-DNA helix in 3D |
+| [#11](../../issues/11) | **Life** — Turing patterns, predator–prey, epidemics, cellular automata |
+| [#9](../../issues/9) | Proofs, part two — `ln`, `sqrt`, `tan` and division with their domain conditions |
+| [#10](../../issues/10) | Algebra, part two — partial fractions and factoring over ℚ |
+| [#12](../../issues/12) | logP and molar refractivity, done properly — deliberately absent until it can be right |
+| [#14](../../issues/14) | Command palette |
+
+<br>
+
+> [!NOTE]
+> Twenty-eight open issues is more than gets delivered quickly, and the ordering above is
+> the point rather than the list. If something is added, something moves.
 
 <br>
 
